@@ -47,18 +47,18 @@ async def go_to_login(page,base_url=BASE_URL):
 
 async def login(page, num_documento: str = NUM_DOCUMENTO_PRINC, password: str = LOGIN_PASSWORD):
     # Interact with the dropdown menu
-        field = page.get_by_label("Tipo de documento")
-        await field.click(timeout=10000)
-        option = page.get_by_role("option", name="Cédula de Ciudadanía")
-        await option.click(timeout=10000)
-        # Fill in the document number and password fields
-        locator = page.get_by_label(re.compile("n[uú]mero de documento", re.I))
-        await locator.fill(num_documento, timeout=10000)
-        locator = page.get_by_label(re.compile("contraseñ?a", re.I))
-        await locator.fill(password, timeout=10000)
-        # Click the login button
-        login_button = page.get_by_role("button", name=re.compile("ingresar|entrar|login", re.I))
-        await login_button.click(timeout=10000)
+    field = page.get_by_label("Tipo de documento")
+    await field.click(timeout=10000)
+    option = page.get_by_role("option", name="Cédula de Ciudadanía")
+    await option.click(timeout=10000)
+    # Fill in the document number and password fields
+    locator = page.get_by_label(re.compile("n[uú]mero de documento", re.I))
+    await locator.fill(num_documento, timeout=10000)
+    locator = page.get_by_label(re.compile("contraseñ?a", re.I))
+    await locator.fill(password, timeout=10000)
+    # Click the login button
+    login_button = page.get_by_role("button", name=re.compile("ingresar|entrar|login", re.I))
+    await login_button.click(timeout=10000)
 
 async def wait_for_post_login(page):
     # Wait for post-login state: URL change or a known element (adjust as you observe)
@@ -183,16 +183,15 @@ async def main():
         await go_to_login(page)
         await login(page)
         await wait_for_post_login(page)
+        # Navigate to reserves
         await go_to_reserves(page)
+        # Fill reservation form
         await fill_reservation_form(page)
-
         # Select the scenario and click "Reservar"
         await select_scenario(page, *SCENARIO_KEYWORDS)
-
         # Select division to reserve
         await select_division(page)
-
-        # 
+        # Select time slot
         await select_time_slot(page)
         # Host Info prepared. Confirm it.
         await confirm_participant_info(page)

@@ -2,10 +2,11 @@ import asyncio
 import re
 from datetime import date, timedelta
 
-from playwright.async_api import async_playwright, TimeoutError as PWTimeoutError, expect
+from playwright.async_api import Playwright,async_playwright, TimeoutError as PWTimeoutError, expect
 
 from .config import load_settings
 DEFAULT_SETTINGS = load_settings()
+BASE_URL = DEFAULT_SETTINGS.base_url
 
 def nearest_future_friday(d: date | None = None) -> date:
     d = d or date.today()
@@ -14,17 +15,17 @@ def nearest_future_friday(d: date | None = None) -> date:
         days_ahead = 7  # strictly future
     return d + timedelta(days=days_ahead)
 
-async def launch_program(pw_context_mng, headless: bool = DEFAULT_SETTINGS.headless, slow_mo: int | None = DEFAULT_SETTINGS.slow_mo_ms):
-    browser = await pw_context_mng.chromium.launch(headless=headless,slow_mo=slow_mo)
+async def launch_program(pw_object: Playwright, headless: bool, slow_mo: int):
+    browser = await pw_object.chromium.launch(headless=headless,slow_mo=slow_mo)
     context = await browser.new_context()
     page = await context.new_page()
     return page
 
-async def go_to_login(page,base_url=DEFAULT_SETTINGS.base_url):
-    await page.goto(f"{base_url}/login/", wait_until="domcontentloaded")
+async def go_to_login(page):
+    await page.goto(f"{BASE_URL}/login/", wait_until="domcontentloaded")
     print("Page title:", await page.title())
 
-async def login(page, num_documento: str = DEFAULT_SETTINGS.num_documento_princ, password: str = DEFAULT_SETTINGS.login_password):
+async def login(page, num_documento: str, password: str):
     # Interact with the dropdown menu
     field = page.get_by_label("Tipo de documento")
     await field.click(timeout=10000)
@@ -55,7 +56,7 @@ async def go_to_reserves(page):
         link = page.get_by_text(re.compile(re.escape(lab), re.I))
         await link.click(timeout=10000)
 
-async def fill_reservation_form(page, selections: dict = DEFAULT_SETTINGS.scenario_filters):
+async def fill_reservation_form(page, selections: dict[str, str]):
     # Fill out the reservation form with the specified selections
 
     for field_label, option_text in selections.items():
@@ -71,8 +72,6 @@ async def select_scenario(page, *scenario_keywords: str):
     so all keywords must match the same row. Example:
         await select_scenario(page, "Belén Andrés", "campo N 3")
     """
-    if not scenario_keywords:
-        scenario_keywords = DEFAULT_SETTINGS.scenario_keywords
     selector = page.get_by_role("row")
     for kw in scenario_keywords:
         selector = selector.filter(has=page.get_by_text(kw, exact=False))
@@ -80,14 +79,14 @@ async def select_scenario(page, *scenario_keywords: str):
     # small "human-like" pause could be added if desired
     await page.get_by_role("menuitem", name="Reservar").click()
 
-async def select_division(page, division_name: str = DEFAULT_SETTINGS.division_name):
+async def select_division(page, division_name: str):
     division_field = page.get_by_label("Selecciona la división a reservar *")
     await division_field.click(timeout=10000)
     division_option = page.get_by_role("option", name=division_name)
     await division_option.click(timeout=10000)
     await page.get_by_role("listbox").wait_for(state="hidden")
 
-async def select_time_slot(page,max_weeks_to_try: int = DEFAULT_SETTINGS.weeks_to_try,desired_time_slot: str = DEFAULT_SETTINGS.desired_time_slot):
+async def select_time_slot(page,max_weeks_to_try: int,desired_time_slot: str ):
 
     # wait for calendar
     await expect(page.locator(".fc")).to_be_visible(timeout=15000)
@@ -133,7 +132,7 @@ async def confirm_participant_info(page):
     await expect(add_info_btn_2).to_be_visible(timeout=15000)
     await add_info_btn_2.click()
 
-async def add_participant(page, guest_numdoc: str = DEFAULT_SETTINGS.guest_numdoc):
+async def add_participant(page, guest_numdoc: str):
     add_participant_btn = page.get_by_role("button", name=re.compile("Agregar Participantes", re.I))
     await add_participant_btn.click()
     field = page.get_by_label("Tipo de documento")
@@ -158,25 +157,25 @@ async def save_reservation(page):
 async def main() -> None:
     async with async_playwright() as p:
         #Launch browser
-        page = await launch_program(p)
+        page = await launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
         #Login
         await go_to_login(page)
-        await login(page)
+        await login(page, num_documento = DEFAULT_SETTINGS.num_documento_princ, password = DEFAULT_SETTINGS.login_password)
         await wait_for_post_login(page)
         # Navigate to reserves
         await go_to_reserves(page)
         # Fill reservation form
-        await fill_reservation_form(page)
+        await fill_reservation_form(page, selections=DEFAULT_SETTINGS.scenario_filters)
         # Select the scenario and click "Reservar"
-        await select_scenario(page)
+        await select_scenario(page, *DEFAULT_SETTINGS.scenario_keywords)
         # Select division to reserve
-        await select_division(page)
+        await select_division(page, division_name=DEFAULT_SETTINGS.division_name)
         # Select time slot
-        await select_time_slot(page)
+        await select_time_slot(page,max_weeks_to_try=DEFAULT_SETTINGS.weeks_to_try,desired_time_slot=DEFAULT_SETTINGS.desired_time_slot)
         # Host Info prepared. Confirm it.
         await confirm_participant_info(page)
         # Other participants
-        await add_participant(page)
+        await add_participant(page, guest_numdoc=DEFAULT_SETTINGS.guest_numdoc)
         # Save reservation
         await save_reservation(page)
         print("✅ Reservation flow completed (verify in UI).")

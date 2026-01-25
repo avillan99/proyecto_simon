@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from .constants import BASE_URL
+from .validations import verify_env_inputs
 
 @dataclass()
 class Settings:
@@ -34,9 +35,8 @@ def load_settings() -> Settings:
     login_password = os.getenv("LOGIN_PASSWORD", "")
     guest_numdoc = os.getenv("GUEST_NUMDOC", "")
 
-    if not all([num_documento_princ, login_password, guest_numdoc]):
-        raise ValueError("Environment variables NUM_DOCUMENTO_PRINC, LOGIN_PASSWORD, and GUEST_NUMDOC must be set.")
-
+    verify_env_inputs(num_documento_princ, login_password, guest_numdoc)
+    
     return Settings(
         num_documento_princ=num_documento_princ,
         login_password=login_password,

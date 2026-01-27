@@ -5,3 +5,5 @@
 .env
 *.pem
 *.key
+
+.vscode/

@@ -1,3 +1,4 @@
+import asyncio
 import re
 from datetime import timedelta
 
@@ -119,12 +120,50 @@ async def select_time_slot(page,max_weeks_to_try: int,desired_time_slot: str ):
     else:
         raise RuntimeError("No available slot found in the next weeks.")
 
-async def confirm_participant_info(page):
-    add_info_btn = page.get_by_role("button", name=re.compile("Agregar información adicional", re.I))
-    await expect(add_info_btn).to_be_visible(timeout=15000)
-    await add_info_btn.click()
-    add_info_btn_2 = page.get_by_role("button", name=re.compile("Agregar informacion", re.I))
-    await expect(add_info_btn_2).to_be_visible(timeout=15000)
+async def confirm_participant_info(page,participant_numdoc: str):
+    # Wait for the title to ensure we're on the right page
+    title = page.get_by_role("heading", name="Creación de Reserva")
+    await expect(title).to_be_visible(timeout=TIMEOUT_MS)
+    # Get the row corresponding to the participant_numdoc
+    row = page.get_by_role(
+        "row",
+        name=re.compile(rf"{participant_numdoc}", re.I)
+    )
+    await expect(row).to_be_visible(timeout=TIMEOUT_MS)
+    # Locate buttons within that row
+    add_info_btn = row.get_by_role(
+        "button",
+        name=re.compile(r"Agregar información adicional", re.I),
+    )
+    confirm_btn = row.get_by_role(
+        "button",
+        name=re.compile(r"Lista", re.I),
+    )
+    # Click the appropriate button
+    add_info_btn_try = asyncio.create_task(add_info_btn.wait_for(state="visible", timeout=TIMEOUT_MS))
+    confirm_btn_try = asyncio.create_task(confirm_btn.wait_for(state="visible", timeout=TIMEOUT_MS))
+    done, pending = await asyncio.wait(
+        {add_info_btn_try, confirm_btn_try},
+        timeout=TIMEOUT_MS,
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    for task in pending:
+        task.cancel()
+    if not done:
+        raise TimeoutError("Neither 'Agregar información adicional' nor Confirm button became visible in time.")
+    
+    if await add_info_btn.is_visible():
+        print("[INFO] Clicking 'Agregar información adicional'...")
+        await add_info_btn.click()
+    else:
+        print("[INFO] 'Agregar información adicional' is not visible, but Confirm button is visible. Clicking it...")
+        await confirm_btn.click()
+
+    # After clicking, click the secondary "Agregar informacion" button
+    add_info_btn_2 = page.get_by_role(
+        "button", 
+        name=re.compile(r"Agregar informacion", re.I))
+    await expect(add_info_btn_2).to_be_visible(timeout=TIMEOUT_MS)
     await add_info_btn_2.click()
 
 async def add_participant(page, guest_numdoc: str):
@@ -138,7 +177,7 @@ async def add_participant(page, guest_numdoc: str):
     await locator.fill(guest_numdoc, timeout=TIMEOUT_MS)
     login_button = page.get_by_role("button", name=re.compile("Buscar", re.I))
     await login_button.click(timeout=TIMEOUT_MS)
-    await confirm_participant_info(page)
+    await confirm_participant_info(page,guest_numdoc)
 
 async def save_reservation(page):
     save_bttn = page.get_by_role("button", name=re.compile("Guardar", re.I))

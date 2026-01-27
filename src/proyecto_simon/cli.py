@@ -27,7 +27,7 @@ async def main() -> None:
         # Select time slot
         await ui.select_time_slot(page,max_weeks_to_try=DEFAULT_SETTINGS.weeks_to_try,desired_time_slot=DEFAULT_SETTINGS.desired_time_slot)
         # Host Info prepared. Confirm it.
-        await ui.confirm_participant_info(page)
+        await ui.confirm_participant_info(page,participant_numdoc=DEFAULT_SETTINGS.num_documento_princ)
         # Other participants
         await ui.add_participant(page, guest_numdoc=DEFAULT_SETTINGS.guest_numdoc)
         # Save reservation

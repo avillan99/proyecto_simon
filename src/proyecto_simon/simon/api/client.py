@@ -2,15 +2,6 @@ import httpx
 
 from proyecto_simon.constants.urls import API_BASE_URL, BASE_URL
 
-#Estadio
-## Cancha 10: 293
-## Cancha 8: 309
-## Cancha 9: 311
-
-DIVISION_PK = 293
-
-import httpx
-
 async def get_division_data(token: str, division_pk: int) -> dict:
     headers = {
         "accept": "application/json",

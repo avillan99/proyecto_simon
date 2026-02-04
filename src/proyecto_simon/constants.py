@@ -1,1 +1,0 @@
-BASE_URL = "https://simon.inder.gov.co"

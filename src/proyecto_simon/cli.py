@@ -1,14 +1,16 @@
 import asyncio
+import sys
 
 from playwright.async_api import async_playwright
 
 from .config import load_settings
-from . import ui_actions as ui
+from .simon.api import auth,client
+from .simon.browser import navigation as ui
 
 DEFAULT_SETTINGS = load_settings()
 BASE_URL = DEFAULT_SETTINGS.base_url
 
-async def main() -> None:
+async def reserve() -> None:
     async with async_playwright() as p:
         #Launch browser
         page = await ui.launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
@@ -34,6 +36,34 @@ async def main() -> None:
         await ui.save_reservation(page)
         print("✅ Reservation flow completed (verify in UI).")
         await page.wait_for_timeout(10000)  # small "human-like" pause
+
+async def consult() -> None:
+    async with async_playwright() as p:
+        #Launch browser
+        page = await ui.launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
+        #Login
+        await ui.go_to_login(page)
+        await ui.login(page, num_documento = DEFAULT_SETTINGS.num_documento_princ, password = DEFAULT_SETTINGS.login_password)
+        await ui.wait_for_post_login(page)
+        # Capture bearer token
+        token = await auth.capture_bearer_token(page)
+        print("TOKEN FOUND:", token[:20], "...")
+        # Consult data for division_pk
+        print("Consulting data for division_pk =", client.DIVISION_PK)
+        consulting_data = await client.get_division_data(token=token, division_pk=client.DIVISION_PK)
+        print(consulting_data)
+        print("✅ Consultation flow completed.")
+
+COMMANDS = {
+    "reserve": reserve,
+    "consult": consult,
+    # "status": status,
+}
+
+async def main():
+    if len(sys.argv) < 2:
+        raise SystemExit("Usage: python -m myproject <command>")
+    await COMMANDS[sys.argv[1]]()
 
 if __name__ == "__main__":
     asyncio.run(main())

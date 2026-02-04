@@ -3,8 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
-from .constants import BASE_URL
-from .validations.validations import verify_env_inputs
+from .constants.urls import BASE_URL
+from .validations import verify_env_inputs
 
 @dataclass()
 class Settings:

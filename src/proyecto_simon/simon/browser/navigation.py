@@ -4,10 +4,9 @@ from datetime import timedelta
 
 from playwright.async_api import Playwright, TimeoutError as PWTimeoutError, expect
 
-from .config import load_settings
-from .utils.dates import nearest_future_friday
+from proyecto_simon.constants.urls import BASE_URL
+from proyecto_simon.utils.dates import nearest_future_friday
 
-BASE_URL = load_settings().base_url
 
 TIMEOUT_MS = 10_000
 

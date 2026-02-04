@@ -27,4 +27,8 @@ Este proyecto usa una capa src y está diseñado para ser instalado en modo edit
 
 ## Para ejecutar
 ```bash
-python -m proyecto_simon
+python -m proyecto_simon <command>
+
+<command> : ["reserve","consult"]
+"reserve" : Reservar cancha
+"consult" : Consultar disponibilidad (Retorna JSON de disponibilidad)

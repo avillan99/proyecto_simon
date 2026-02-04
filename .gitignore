@@ -6,4 +6,6 @@
 *.pem
 *.key
 
+*.db
+
 .vscode/

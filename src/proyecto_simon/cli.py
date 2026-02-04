@@ -14,6 +14,12 @@ COMMANDS = {
 ## Cancha 8: 309
 ## Cancha 9: 311
 
+#Rosales
+## Cancha 1: 1051
+## Cancha 2: 1053
+## Cancha 3: 1054
+## Cancha 4: 1057
+
 # DIVISION_PK = 293
 
 async def main():

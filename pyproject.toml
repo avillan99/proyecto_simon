@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proyecto_simon"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
   "playwright",
   "python-dotenv",

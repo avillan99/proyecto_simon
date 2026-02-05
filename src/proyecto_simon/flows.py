@@ -34,7 +34,7 @@ async def reserve() -> None:
         await page.wait_for_timeout(10000)  # small "human-like" pause
 
 
-async def consult(division_pk) -> dict:
+async def consult(division_pk_list: list[int]) -> dict:
     async with async_playwright() as p:
         #Launch browser
         page = await ui.launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
@@ -45,15 +45,18 @@ async def consult(division_pk) -> dict:
         # Capture bearer token
         token = await auth.capture_bearer_token(page)
         print("TOKEN FOUND:", token[:20], "...")
-        # Consult data for division_pk
-        print("Consulting data for division_pk =", division_pk)
-        consulting_data = await client.get_division_data(token=token, division_pk=division_pk)
-        # breakpoint()
-        # print(consulting_data)
-        print("Scenary detail:", consulting_data["detail"])
-        print("Timeslots by week: ",len(consulting_data["schedules"]))
-        print("Sample: ", consulting_data["schedules"][:1])
-        print("Found Bookings: ",len(consulting_data["bookings"]))
-        print("Sample: ", consulting_data["bookings"][:1])
+        # Consult data for every division_pk
+        consulting_data = {}
+        for division_pk in division_pk_list:
+            print("Consulting data for division_pk =", division_pk)
+            consulting_data[division_pk] = await client.get_division_data(token=token, division_pk=division_pk)
+            # breakpoint()
+            # print(consulting_data)
+            print("Scenary detail:", consulting_data[division_pk]["detail"])
+            print("Timeslots by week: ",len(consulting_data[division_pk]["schedules"]))
+            print("Sample: ", consulting_data[division_pk]["schedules"][:1])
+            print("Found Bookings: ",len(consulting_data[division_pk]["bookings"]))
+            print("Sample: ", consulting_data[division_pk]["bookings"][:1])
+            print("✅ Consultation for division_pk =", division_pk, "completed.")
         print("✅ Consultation flow completed.")
         return consulting_data

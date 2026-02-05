@@ -20,14 +20,24 @@ COMMANDS = {
 ## Cancha 3: 1054
 ## Cancha 4: 1057
 
-# DIVISION_PK = 293
-
 async def main():
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python -m myproject <command>")
-    
+        raise SystemExit("Usage: python -m proyecto_simon <command> [args...]")
+
     command = sys.argv[1]
     args = sys.argv[2:]
+
+    if command not in COMMANDS:
+        raise SystemExit(f"Unknown command: {command}")
+
+    if command == "consult":
+        try:
+            divisions = [int(x) for x in args]
+        except ValueError:
+            raise SystemExit("consult expects integer division IDs")
+
+        await COMMANDS[command](divisions)
+        return
 
     await COMMANDS[command](*args)
 

@@ -195,7 +195,7 @@ def build_availability_grid(schedules, bookings, days_ahead=30):
         blocked[(b["BOOKING_DATE"], tslot(b))].add(int(b["SCENARY_DIVISION_DETAIL_PK"]))
 
     # 3) Date range
-    start = date.today()
+    start = date.today() + timedelta(days=1)
     dates = [(start + timedelta(days=i)) for i in range(days_ahead + 1)]
     date_strs = [d.isoformat() for d in dates]
 
@@ -261,15 +261,22 @@ def availability_grid_to_html(grid, dates, times, title="Availability (next 30 d
     return "".join(html)
 
 
+division_pk_list = [309,311,293,1051,1053,1054,1057]
+data = asyncio.run(consult(division_pk_list))
 schedules = []
 bookings = []
-# for value in (309,311,293):
-for value in (1051,1053,1054,1057):
-    data = asyncio.run(consult(value))
-    schedules.extend(data["schedules"])
-    for booking in data["bookings"]:
-        booking["SCENARY_DIVISION_DETAIL_PK"] = value  # add court id to each booking
-        bookings.append(booking)   
+for division_pk in division_pk_list:
+    print(f"Accumulating data for division_pk={division_pk}...")
+    if "schedules" not in data[division_pk]:
+        print(f"  No schedules found for division_pk={division_pk}, skipping.")
+        continue
+    if "bookings" not in data[division_pk]:
+        print(f"  No bookings found for division_pk={division_pk}, skipping.")
+        continue
+    schedules.extend(data[division_pk]["schedules"])
+    for booking in data[division_pk]["bookings"]:
+        booking["SCENARY_DIVISION_DETAIL_PK"] = division_pk  # add court id to each booking
+        bookings.append(booking)
 
 debug_dump(schedules, "schedules_combined", as_csv=True)
 debug_dump(bookings, "bookings_combined", as_csv=True)
@@ -290,6 +297,7 @@ debug_dump(bookings, "bookings_combined", as_csv=True)
 #     f.write(html)
 
 import json
+from pathlib import Path
 
 with open("debug/schedules_combined.json", "r", encoding="utf-8") as f:
     schedules_input = json.load(f)
@@ -303,9 +311,7 @@ grid, dates, times = build_availability_grid(
     days_ahead=30,
 )
 
-#TODO: Optimize with Path
-import os
 html = availability_grid_to_html(grid, dates, times, title="Available courts (next 30 days)")
-os.makedirs("results", exist_ok=True)
-with open("results/availability.html", "w", encoding="utf-8") as f:
-    f.write(html)
+results_dir = Path("results")
+results_dir.mkdir(parents=True, exist_ok=True)
+(results_dir / "availability.html").write_text(html, encoding="utf-8")

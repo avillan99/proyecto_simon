@@ -1,11 +1,11 @@
 import asyncio
 import sys
 
-from .flows import reserve, consult
+from .flows import reserve, generate_availability
 
 COMMANDS = {
     "reserve": reserve,
-    "consult": consult,
+    "consult": generate_availability,
     # "status": status,
 }
 

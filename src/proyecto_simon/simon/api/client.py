@@ -18,3 +18,17 @@ async def get_division_data(token: str, division_pk: int) -> dict:
         r.raise_for_status()
         return r.json()
 
+async def massive_get_division_data(token: str, division_pks: list[int]) -> dict:
+    data = {}
+    for division_pk in division_pks:
+        print("Consulting data for division_pk =", division_pk)
+        data[division_pk] = await get_division_data(token=token, division_pk=division_pk)
+        # breakpoint()
+        # print(data)
+        print("Scenary detail:", data[division_pk]["detail"])
+        print("Timeslots by week: ",len(data[division_pk]["schedules"]))
+        print("Sample: ", data[division_pk]["schedules"][:1])
+        print("Found Bookings: ",len(data[division_pk]["bookings"]))
+        print("Sample: ", data[division_pk]["bookings"][:1])
+        print("✅ Consultation for division_pk =", division_pk, "completed.")
+    return data

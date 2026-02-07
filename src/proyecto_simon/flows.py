@@ -1,19 +1,17 @@
 from playwright.async_api import async_playwright
 
+from .utils.calendar import generate_availability_html
 from .config import load_settings
-from .simon.api import auth,client
+from .simon.api import client
+from .simon.auth.login import ui_login, get_api_token
 from .simon.browser import navigation as ui
 
 DEFAULT_SETTINGS = load_settings()
 
 async def reserve() -> None:
     async with async_playwright() as p:
-        #Launch browser
-        page = await ui.launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
         #Login
-        await ui.go_to_login(page)
-        await ui.login(page, num_documento = DEFAULT_SETTINGS.num_documento_princ, password = DEFAULT_SETTINGS.login_password)
-        await ui.wait_for_post_login(page)
+        page = await ui_login(pw_object=p)
         # Navigate to reserves
         await ui.go_to_reserves(page)
         # Fill reservation form
@@ -34,29 +32,12 @@ async def reserve() -> None:
         await page.wait_for_timeout(10000)  # small "human-like" pause
 
 
-async def consult(division_pk_list: list[int]) -> dict:
+async def generate_availability(division_pk_list: list[int]) -> None:
     async with async_playwright() as p:
-        #Launch browser
-        page = await ui.launch_program(pw_object = p, headless=DEFAULT_SETTINGS.headless, slow_mo=DEFAULT_SETTINGS.slow_mo_ms)
-        #Login
-        await ui.go_to_login(page)
-        await ui.login(page, num_documento = DEFAULT_SETTINGS.num_documento_princ, password = DEFAULT_SETTINGS.login_password)
-        await ui.wait_for_post_login(page)
         # Capture bearer token
-        token = await auth.capture_bearer_token(page)
-        print("TOKEN FOUND:", token[:20], "...")
+        token = await get_api_token(pw_object=p)
         # Consult data for every division_pk
-        consulting_data = {}
-        for division_pk in division_pk_list:
-            print("Consulting data for division_pk =", division_pk)
-            consulting_data[division_pk] = await client.get_division_data(token=token, division_pk=division_pk)
-            # breakpoint()
-            # print(consulting_data)
-            print("Scenary detail:", consulting_data[division_pk]["detail"])
-            print("Timeslots by week: ",len(consulting_data[division_pk]["schedules"]))
-            print("Sample: ", consulting_data[division_pk]["schedules"][:1])
-            print("Found Bookings: ",len(consulting_data[division_pk]["bookings"]))
-            print("Sample: ", consulting_data[division_pk]["bookings"][:1])
-            print("✅ Consultation for division_pk =", division_pk, "completed.")
-        print("✅ Consultation flow completed.")
-        return consulting_data
+        data = await client.massive_get_division_data(token=token, division_pks=division_pk_list)
+        # Process and combine data as needed for analysis or output
+        generate_availability_html(data)
+        print("✅ Availability generation flow completed.")

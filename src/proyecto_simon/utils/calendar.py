@@ -1,11 +1,12 @@
-import asyncio
-from pydoc import html
+import json
+from pathlib import Path
+from html import escape
 
-from proyecto_simon.flows import reserve, consult
-from proyecto_simon.utils.debug import debug_dump 
+from .debug import debug_dump 
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+
 
 def build_weekly_calendar(schedules):
     days_order = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"]
@@ -164,8 +165,6 @@ def bookings_to_html_grid(bookings, court_id, title="Bookings"):
 
     return "".join(html)
 
-from collections import defaultdict
-from datetime import date, timedelta
 
 def build_availability_grid(schedules, bookings, days_ahead=30):
     """
@@ -217,8 +216,6 @@ def build_availability_grid(schedules, bookings, days_ahead=30):
 
     return grid, date_strs, sorted(times_seen)
 
-from html import escape
-
 def availability_grid_to_html(grid, dates, times, title="Availability (next 30 days)"):
     css = """
     <style>
@@ -261,57 +258,44 @@ def availability_grid_to_html(grid, dates, times, title="Availability (next 30 d
     return "".join(html)
 
 
-division_pk_list = [309,311,293,1051,1053,1054,1057]
-data = asyncio.run(consult(division_pk_list))
-schedules = []
-bookings = []
-for division_pk in division_pk_list:
-    print(f"Accumulating data for division_pk={division_pk}...")
-    if "schedules" not in data[division_pk]:
-        print(f"  No schedules found for division_pk={division_pk}, skipping.")
-        continue
-    if "bookings" not in data[division_pk]:
-        print(f"  No bookings found for division_pk={division_pk}, skipping.")
-        continue
-    schedules.extend(data[division_pk]["schedules"])
-    for booking in data[division_pk]["bookings"]:
-        booking["SCENARY_DIVISION_DETAIL_PK"] = division_pk  # add court id to each booking
-        bookings.append(booking)
+def bind_schedules_and_bookings(divisions_data: dict[int, dict]) -> tuple[list, list]:
+    schedules = []
+    bookings = []
+    for division_pk in divisions_data.keys():
+        print(f"Accumulating data for division_pk={division_pk}...")
+        if "schedules" not in divisions_data[division_pk]:
+            print(f"  No schedules found for division_pk={division_pk}, skipping.")
+            continue
+        if "bookings" not in divisions_data[division_pk]:
+            print(f"  No bookings found for division_pk={division_pk}, skipping.")
+            continue
+        schedules.extend(divisions_data[division_pk]["schedules"])
+        for booking in divisions_data[division_pk]["bookings"]:
+            booking["SCENARY_DIVISION_DETAIL_PK"] = division_pk  # add court id to each booking
+            bookings.append(booking)
+    debug_dump(schedules, "schedules_combined", as_csv=True)
+    debug_dump(bookings, "bookings_combined", as_csv=True)
+    return schedules, bookings
 
-debug_dump(schedules, "schedules_combined", as_csv=True)
-debug_dump(bookings, "bookings_combined", as_csv=True)
 
-# print(f"\n\n=== Calendar for division_pk={value} ===")
+def generate_availability_html(divisions_data: dict[int, dict]) -> None:
+    
+    bind_schedules_and_bookings(divisions_data)
 
-# Schedules to console calendar
-# build_weekly_calendar(data["schedules"])
+    with open("debug/schedules_combined.json", "r", encoding="utf-8") as f:
+        schedules_input = json.load(f)
 
-# Schedules to HTML table
-# html = schedules_to_html_table(data["schedules"], title=f"Calendar for division_pk={value}")
-# with open(f"calendar_{value}.html", "w", encoding="utf-8") as f:
-#     f.write(html)
+    with open("debug/bookings_combined.json", "r", encoding="utf-8") as f:
+        bookings_input = json.load(f)
 
-# Bookings to HTML grid
-# html = bookings_to_html_grid(data["bookings"], value, title=f"Bookings for division_pk={value}")
-# with open(f"bookings_{value}.html", "w", encoding="utf-8") as f:
-#     f.write(html)
+    grid, dates, times = build_availability_grid(
+        schedules=schedules_input,
+        bookings=bookings_input,
+        days_ahead=30,
+    )
 
-import json
-from pathlib import Path
-
-with open("debug/schedules_combined.json", "r", encoding="utf-8") as f:
-    schedules_input = json.load(f)
-
-with open("debug/bookings_combined.json", "r", encoding="utf-8") as f:
-    bookings_input = json.load(f)
-
-grid, dates, times = build_availability_grid(
-    schedules=schedules_input,
-    bookings=bookings_input,
-    days_ahead=30,
-)
-
-html = availability_grid_to_html(grid, dates, times, title="Available courts (next 30 days)")
-results_dir = Path("results")
-results_dir.mkdir(parents=True, exist_ok=True)
-(results_dir / "availability.html").write_text(html, encoding="utf-8")
+    html = availability_grid_to_html(grid, dates, times, title="Available courts (next 30 days)")
+    results_dir = Path("results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / "availability.html").write_text(html, encoding="utf-8")
+    print("✅ Availability HTML generated at results/availability.html")
